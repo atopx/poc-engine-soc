@@ -1,49 +1,26 @@
 package scanner
 
 import (
-	"bytes"
-	"errors"
-	"os/exec"
-	"strings"
-	"sync"
+	"context"
 
 	"github.com/yanmengfei/poc-engine-soc/build"
+	"github.com/yanmengfei/poc-engine-soc/proto"
 )
 
-type scanner struct {
-	poc *build.PocEvent
+type Scanner struct {
+	poc *build.SocpocEvent
+	// client proto.SocpocClient
 }
 
-var scannerPool = sync.Pool{New: func() interface{} { return new(scanner) }}
-
-func (s *scanner) Start(target string) (verufy bool, err error) {
-	cmd := exec.Command(s.poc.Python, "-c", s.poc.GetExecCode(target))
-	var stderr, stdout bytes.Buffer
-	cmd.Stderr = &stderr
-	cmd.Stdout = &stdout
-	defer s.poc.CleanCache()
-	if cmd.Run() != nil {
-		return false, errors.New(stderr.String())
-	}
-	switch strings.TrimSpace(stdout.String()) {
-	case "True":
-		return true, nil
-	case "False":
-		return false, nil
-	}
-	return false, errors.New(stdout.String())
+func New(poc *build.SocpocEvent) *Scanner {
+	return &Scanner{poc: poc}
 }
 
-func New(poc *build.PocEvent) (scan *scanner, err error) {
-	if poc == nil {
-		return nil, errors.New("invalid poc")
+func (s *Scanner) Start(target string, ctx context.Context) (bool, error) {
+	client := proto.NewSocpocClient(s.poc.Conn)
+	resp, err := client.Execute(ctx, &proto.ExecuteRequest{Key: s.poc.Key, Module: s.poc.Module, Url: target})
+	if err != nil {
+		return false, err
 	}
-	scan = scannerPool.Get().(*scanner)
-	scan.poc = poc
-	return scan, nil
-}
-
-func Release(scan *scanner) {
-	scan.poc = nil
-	scannerPool.Put(scan)
+	return resp.Status, err
 }

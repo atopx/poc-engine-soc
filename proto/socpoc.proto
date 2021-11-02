@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+option go_package = "./proto";
+
+package proto;
+
+message SetenvRequest {
+    string key = 1;
+    string code = 2;
+}
+
+message SetenvResponse{
+    bool ready = 1;
+}
+
+message ExecuteRequest {
+    string key = 1;
+    string module = 2;
+    string url = 3;
+}
+
+message ExecuteResponse {
+    bool status = 1;
+    string error = 2;
+}
+
+service Socpoc {
+    rpc setenv(SetenvRequest) returns(SetenvResponse);
+    rpc execute(ExecuteRequest)returns (ExecuteResponse);
+}
